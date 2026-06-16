@@ -1325,15 +1325,15 @@ ${hashtags}`;
                       <p className="text-xs text-[#F5F5F5] font-medium leading-none">Send GH₵50 to MoMo</p>
                       <div className="flex items-center space-x-2 mt-1.5 flex-wrap gap-1">
                         <span 
-                          onClick={() => handleCopyNumber("0500810910")}
+                          onClick={() => handleCopyNumber("0241862207")}
                           className="text-base font-mono font-black text-white tracking-wider cursor-pointer hover:text-[#C9A84C] transition-colors select-all"
                           title="Click to copy Mobile Wallet number"
                         >
-                          0500810910
+                          0241862207
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleCopyNumber("0500810910")}
+                          onClick={() => handleCopyNumber("0241862207")}
                           className="text-[9px] font-mono bg-[#C9A84C]/10 border border-[#C9A84C]/25 hover:bg-[#C9A84C]/20 text-[#C9A84C] px-1.5 py-0.5 rounded cursor-pointer transition-all active:scale-95"
                         >
                           {copiedNumber ? "Copied!" : "Copy"}
