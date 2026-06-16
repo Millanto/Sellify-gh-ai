@@ -21,6 +21,7 @@ import {
   ArrowUpRight,
   Star,
   Trash2,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SellingPackage, SearchHistoryItem } from "./types";
@@ -1322,6 +1323,16 @@ ${hashtags}`;
               transition={{ duration: 0.3, delay: 0.1 }}
               className="bg-[#111111] border border-[#C9A84C] rounded-[20px] p-6 md:p-8 max-w-[420px] w-[90%] md:w-full max-h-[90vh] overflow-y-auto shadow-[0_25px_60px_rgba(0,0,0,0.9)] flex flex-col items-center relative text-center select-text transition-all scrollbar-thin"
             >
+              {/* Close/Quit top button */}
+              <button
+                type="button"
+                onClick={() => setShowPaywallModal(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer select-none"
+                title="Quit Paywall"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
               <div className="text-[#C9A84C] text-3xl md:text-4xl font-bold leading-none mb-3 select-none">◆</div>
               
               <div className="text-[9px] md:text-[10px] tracking-[0.15em] text-[#888888] font-bold uppercase mb-2 text-center">
@@ -1491,9 +1502,18 @@ ${hashtags}`;
               )}
 
               {/* Footer Badge */}
-              <div className="text-[10px] tracking-widest text-[#888888] text-center mt-6 uppercase leading-none select-none">
+              <div className="text-[10px] tracking-widest text-[#888888] text-center mt-6 uppercase leading-none select-none animate-pulse">
                 🔒 Secure • Instant • Ghana Made 🇬🇭
               </div>
+
+              {/* Keep Browsing / Quit Modal Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowPaywallModal(false)}
+                className="w-full mt-4 py-3 bg-[#111111] border border-white/10 hover:border-white/20 text-[#888888] hover:text-white transition-all rounded-xl font-mono text-[9px] uppercase tracking-[0.12em] font-black cursor-pointer select-none active:scale-95"
+              >
+                Quit modal & browse app
+              </button>
             </motion.div>
           </motion.div>
         )}
