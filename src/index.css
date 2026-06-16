@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, Cambria, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #0A0A0A;
+  color: #F5F5F5;
+  line-height: 1.6;
+}
+
+/* Custom scrollbars for the sidebars and tabs */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+}
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 9px;
+  border: 1px solid #111111;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C9A84C;
+}
+
+/* Custom clipping for Whatsapp tail */
+.clip-whatsapp-tail {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+/* Gold text styling and borders */
+.luxury-gold-gradient {
+  background: linear-gradient(135deg, #C9A84C 0%, #F5E0A3 50%, #C9A84C 100%);
+}
+
+.luxury-gold-text {
+  background: linear-gradient(135deg, #C9A84C 0%, #F5E0A3 50%, #E8C96D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Subtle gold particle animation in header background */
+@keyframes luxuryGlow {
+  0% {
+    opacity: 0.3;
+    transform: scale(0.98) translate(0%, 0%);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.02) translate(1%, -1%);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(0.98) translate(0%, 0%);
+  }
+}
+
+.glow-ambient-1 {
+  animation: luxuryGlow 12s ease-in-out infinite alternate;
+}
+
+.glow-ambient-2 {
+  animation: luxuryGlow 18s ease-in-out infinite alternate-reverse;
+}
