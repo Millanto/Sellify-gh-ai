@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { SellingPackage, SearchHistoryItem } from "./types";
 import WhatsAppMockup from "./components/WhatsAppMockup";
 import SocialMockup from "./components/SocialMockup";
+import { Analytics } from "@vercel/analytics/react";
 
 const PRESETS = [
   {
@@ -162,11 +163,13 @@ export default function App() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>("🎉 Welcome to Sellify AI! You're now unlimited.");
   const [copiedNumber, setCopiedNumber] = useState<boolean>(false);
 
   // Load history & paywall states on mount
   useEffect(() => {
     try {
+      let initialHistoryLength = 0;
       const saved = localStorage.getItem("sellify_commerce_history") || localStorage.getItem("elite_commerce_history");
       if (saved) {
         const parsed: SearchHistoryItem[] = JSON.parse(saved);
@@ -175,14 +178,22 @@ export default function App() {
           data: sanitizePackage(item.data),
         }));
         setHistory(cleaned);
+        initialHistoryLength = cleaned.length;
       }
 
       const uses = localStorage.getItem("sellify_uses");
       const isUnlocked = localStorage.getItem("sellify_unlocked") === "true";
-      const parsedUses = uses ? parseInt(uses, 10) : 0;
+      
+      // Fallback to history length if "sellify_uses" is not set at all!
+      const parsedUses = uses !== null ? parseInt(uses, 10) : initialHistoryLength;
       
       setUsesCount(parsedUses);
       setUnlocked(isUnlocked);
+      
+      // Auto-save the fallback uses count to keep in sync
+      if (uses === null) {
+        localStorage.setItem("sellify_uses", String(parsedUses));
+      }
       
       if (!isUnlocked && parsedUses >= 3) {
         setShowPaywallModal(true);
@@ -271,6 +282,7 @@ ${hashtags}`;
         localStorage.setItem("sellify_unlocked", "true");
         setUnlocked(true);
         setShowPaywallModal(false);
+        setToastMessage("🎉 Welcome to Sellify AI! You're now unlimited.");
         setShowSuccessToast(true);
         setEnteredCode("");
         setCodeError(null);
@@ -286,6 +298,24 @@ ${hashtags}`;
       setTimeout(() => {
         setIsShaking(false);
       }, 400);
+    }
+  };
+
+  const resetTesterParameters = () => {
+    try {
+      localStorage.removeItem("sellify_uses");
+      localStorage.removeItem("sellify_unlocked");
+      setUsesCount(0);
+      setUnlocked(false);
+      setShowPaywallModal(false);
+      setShowCodeInput(false);
+      setToastMessage("🔄 Tester reset: 3 free runs restored!");
+      setShowSuccessToast(true);
+      setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 3000);
+    } catch (e) {
+      console.error("Storage write error during reset:", e);
     }
   };
 
@@ -314,15 +344,23 @@ ${hashtags}`;
     e.preventDefault();
     if (!query.trim() || loading) return;
 
-    // Direct paywall gating check
-    if (!unlocked && usesCount >= 3) {
+    // Direct synchronous check from disk for extreme reliability
+    const diskUnlocked = localStorage.getItem("sellify_unlocked") === "true";
+    const diskUsesStr = localStorage.getItem("sellify_uses");
+    const diskUses = diskUsesStr !== null ? parseInt(diskUsesStr, 10) : usesCount;
+
+    // Apply real-time synchronization
+    if (diskUnlocked !== unlocked) setUnlocked(diskUnlocked);
+    if (diskUses !== usesCount) setUsesCount(diskUses);
+
+    if (!diskUnlocked && diskUses >= 3) {
       setShowPaywallModal(true);
       return;
     }
 
     // Increment generations count under free tier
-    if (!unlocked) {
-      const nextLimit = usesCount + 1;
+    if (!diskUnlocked) {
+      const nextLimit = diskUses + 1;
       setUsesCount(nextLimit);
       try {
         localStorage.setItem("sellify_uses", String(nextLimit));
@@ -503,11 +541,22 @@ ${hashtags}`;
           <div className="bg-[#111111] border border-[#C9A84C]/25 rounded-[20px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col space-y-5 relative">
             <div className="absolute top-0 right-0 h-1.5 w-12 bg-gradient-to-r from-[#C9A84C] to-[#E8C96D] rounded-bl-lg rounded-tr-[20px]" />
             
-            <div className="flex items-center space-x-2.5">
-              <div className="h-2 w-2 rounded-full bg-[#C9A84C] shadow-[0_0_8px_#C9A84C]" />
-              <h2 className="text-[10px] tracking-[0.15em] font-bold text-[#C9A84C] uppercase font-sans">
-                What are you selling?
-              </h2>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-2.5">
+                <div className="h-2 w-2 rounded-full bg-[#C9A84C] shadow-[0_0_8px_#C9A84C]" />
+                <h2 className="text-[10px] tracking-[0.15em] font-bold text-[#C9A84C] uppercase font-sans">
+                  What are you selling?
+                </h2>
+              </div>
+              {unlocked ? (
+                <span className="text-[8px] font-mono bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/25 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider select-none">
+                  UNLIMITED ACTIVE
+                </span>
+              ) : (
+                <span className="text-[8px] font-mono bg-white/5 text-gray-400 border border-white/5 px-2 py-0.5 rounded uppercase tracking-wider select-none font-semibold">
+                  Free runs used: {usesCount}/3
+                </span>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
@@ -593,40 +642,51 @@ ${hashtags}`;
                 </h2>
               </div>
               
-              {history.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  {confirmWipe ? (
-                    <>
-                      <span className="text-[9px] font-mono text-red-400 font-semibold uppercase animate-pulse">
-                        Sure?
-                      </span>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={resetTesterParameters}
+                  className="text-[9px] font-mono tracking-wider text-[#C9A84C]/60 hover:text-[#C9A84C] transition-colors uppercase cursor-pointer mr-1"
+                  title="Reset code uses back to 0 & lock the app for testing the paywall"
+                >
+                  [ RESET LIMITS ]
+                </button>
+                
+                {history.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    {confirmWipe ? (
+                      <>
+                        <span className="text-[9px] font-mono text-red-400 font-semibold uppercase animate-pulse">
+                          Sure?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearHistory}
+                          className="text-[9px] font-mono tracking-wider font-bold text-red-500 hover:text-red-400 transition-colors py-0.5 px-2 bg-red-950/40 border border-red-500/30 rounded uppercase cursor-pointer"
+                        >
+                          Wipe Clean
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmWipe(false)}
+                          className="text-[9px] font-mono tracking-wider text-gray-400 hover:text-gray-300 transition-colors py-0.5 px-1.5 uppercase cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        onClick={clearHistory}
-                        className="text-[9px] font-mono tracking-wider font-bold text-red-500 hover:text-red-400 transition-colors py-0.5 px-2 bg-red-950/40 border border-red-500/30 rounded uppercase cursor-pointer"
+                        onClick={() => setConfirmWipe(true)}
+                        className="text-[9px] font-mono tracking-wider font-bold text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 uppercase cursor-pointer"
                       >
-                        Wipe Clean
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Wipe Logs</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmWipe(false)}
-                        className="text-[9px] font-mono tracking-wider text-gray-400 hover:text-gray-300 transition-colors py-0.5 px-1.5 uppercase cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmWipe(true)}
-                      className="text-[9px] font-mono tracking-wider font-bold text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 uppercase cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Wipe Logs</span>
-                    </button>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {history.length === 0 ? (
@@ -1240,7 +1300,7 @@ ${hashtags}`;
             transition={{ duration: 0.3 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 z-[200] bg-[#C9A84C] text-black px-6 py-4 rounded-xl shadow-[0_12px_40px_rgba(201,168,76,0.35)] flex items-center space-x-3 border border-[#E8C96D]/40 font-sans font-bold text-sm tracking-wide"
           >
-            <span>🎉 Welcome to Sellify AI! You're now unlimited.</span>
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1438,6 +1498,7 @@ ${hashtags}`;
           </motion.div>
         )}
       </AnimatePresence>
+      <Analytics />
     </div>
   );
 }
