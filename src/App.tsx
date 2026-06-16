@@ -237,8 +237,38 @@ ${hashtags}`;
     e.preventDefault();
     if (!query.trim() || loading) return;
 
+    const trimmedQuery = query.trim();
+    // Cache lookup: If we already have a generated package for this exact query in memory/history,
+    // we bypass the API call, saving rate limit quota and returning it instantly.
+    const cachedItem = history.find(
+      (h) => h.query.toLowerCase() === trimmedQuery.toLowerCase()
+    );
+
     setLoading(true);
     setError(null);
+
+    if (cachedItem) {
+      try {
+        // High-fidelity progressive loading illusion to feel natural and premium
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const cleanData = sanitizePackage(cachedItem.data);
+        setCurrentPackage(cleanData);
+        
+        // Put it at the top of history logs
+        const updatedHistory = [
+          {
+            ...cachedItem,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+          ...history.filter((h) => h.id !== cachedItem.id),
+        ].slice(0, 15);
+        saveHistory(updatedHistory);
+        setLoading(false);
+        return;
+      } catch (err) {
+        // Fallback to calling API if something failed
+      }
+    }
 
     try {
       const response = await fetch("/api/generate", {
