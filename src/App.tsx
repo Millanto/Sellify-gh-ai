@@ -151,6 +151,7 @@ export default function App() {
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<"assets" | "audience" | "channels" | "closing">("assets");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [confirmWipe, setConfirmWipe] = useState(false);
 
   // Load history on mount
   useEffect(() => {
@@ -240,9 +241,8 @@ ${hashtags}`;
   };
 
   const clearHistory = () => {
-    if (window.confirm("Verify: Clear entire prestigious sales memory logs?")) {
-      saveHistory([]);
-    }
+    saveHistory([]);
+    setConfirmWipe(false);
   };
 
   const deleteHistoryItem = (id: string, e: MouseEvent) => {
@@ -524,14 +524,38 @@ ${hashtags}`;
               </div>
               
               {history.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearHistory}
-                  className="text-[9px] font-mono tracking-wider font-bold text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 uppercase"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Wipe Logs</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  {confirmWipe ? (
+                    <>
+                      <span className="text-[9px] font-mono text-red-400 font-semibold uppercase animate-pulse">
+                        Sure?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearHistory}
+                        className="text-[9px] font-mono tracking-wider font-bold text-red-500 hover:text-red-400 transition-colors py-0.5 px-2 bg-red-950/40 border border-red-500/30 rounded uppercase cursor-pointer"
+                      >
+                        Wipe Clean
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmWipe(false)}
+                        className="text-[9px] font-mono tracking-wider text-gray-400 hover:text-gray-300 transition-colors py-0.5 px-1.5 uppercase cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmWipe(true)}
+                      className="text-[9px] font-mono tracking-wider font-bold text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 uppercase cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Wipe Logs</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
