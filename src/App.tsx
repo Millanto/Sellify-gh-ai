@@ -153,7 +153,18 @@ export default function App() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
 
-  // Load history on mount
+  // Paywall states
+  const [usesCount, setUsesCount] = useState<number>(0);
+  const [unlocked, setUnlocked] = useState<boolean>(false);
+  const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
+  const [showCodeInput, setShowCodeInput] = useState<boolean>(false);
+  const [enteredCode, setEnteredCode] = useState<string>("");
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [isShaking, setIsShaking] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [copiedNumber, setCopiedNumber] = useState<boolean>(false);
+
+  // Load history & paywall states on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("sellify_commerce_history") || localStorage.getItem("elite_commerce_history");
@@ -165,8 +176,19 @@ export default function App() {
         }));
         setHistory(cleaned);
       }
+
+      const uses = localStorage.getItem("sellify_uses");
+      const isUnlocked = localStorage.getItem("sellify_unlocked") === "true";
+      const parsedUses = uses ? parseInt(uses, 10) : 0;
+      
+      setUsesCount(parsedUses);
+      setUnlocked(isUnlocked);
+      
+      if (!isUnlocked && parsedUses >= 3) {
+        setShowPaywallModal(true);
+      }
     } catch (e) {
-      console.error("Failed to load history:", e);
+      console.error("Failed to load initial data:", e);
     }
   }, []);
 
@@ -236,6 +258,37 @@ ${hashtags}`;
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const handleCopyNumber = (num: string) => {
+    navigator.clipboard.writeText(num);
+    setCopiedNumber(true);
+    setTimeout(() => setCopiedNumber(false), 2000);
+  };
+
+  const handleConfirmUnlockCode = () => {
+    const sanitized = enteredCode.toUpperCase().trim();
+    if (sanitized === "SELLIFY2024") {
+      try {
+        localStorage.setItem("sellify_unlocked", "true");
+        setUnlocked(true);
+        setShowPaywallModal(false);
+        setShowSuccessToast(true);
+        setEnteredCode("");
+        setCodeError(null);
+        setTimeout(() => {
+          setShowSuccessToast(false);
+        }, 3000);
+      } catch (e) {
+        console.error("Unlock failed to write to disk:", e);
+      }
+    } else {
+      setIsShaking(true);
+      setCodeError("Invalid code. Check your WhatsApp for the correct code.");
+      setTimeout(() => {
+        setIsShaking(false);
+      }, 400);
+    }
+  };
+
   const handlePresetClick = (presetInput: string) => {
     setQuery(presetInput);
   };
@@ -260,6 +313,23 @@ ${hashtags}`;
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!query.trim() || loading) return;
+
+    // Direct paywall gating check
+    if (!unlocked && usesCount >= 3) {
+      setShowPaywallModal(true);
+      return;
+    }
+
+    // Increment generations count under free tier
+    if (!unlocked) {
+      const nextLimit = usesCount + 1;
+      setUsesCount(nextLimit);
+      try {
+        localStorage.setItem("sellify_uses", String(nextLimit));
+      } catch (err) {
+        console.error("Storage write error for limits:", err);
+      }
+    }
 
     const trimmedQuery = query.trim();
     // Cache lookup: If we already have a generated package for this exact query in memory/history,
@@ -1159,6 +1229,215 @@ ${hashtags}`;
       <footer className="border-t border-[#C9A84C]/15 bg-[#050505] p-5 text-center text-[9px] text-[#888888] font-mono uppercase tracking-[0.14em] mt-auto">
         <p>© 2026 Sellify GH Commerce Engine. Polished for Sovereign Retail Enterprise Growth.</p>
       </footer>
+
+      {/* SUCCESS TOAST OVERLAY */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 z-[200] bg-[#C9A84C] text-black px-6 py-4 rounded-xl shadow-[0_12px_40px_rgba(201,168,76,0.35)] flex items-center space-x-3 border border-[#E8C96D]/40 font-sans font-bold text-sm tracking-wide"
+          >
+            <span>🎉 Welcome to Sellify AI! You're now unlimited.</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* PAYWALL SYSTEM MODAL */}
+      <AnimatePresence>
+        {showPaywallModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md select-none overflow-y-auto"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="bg-[#111111] border border-[#C9A84C] rounded-[20px] p-6 md:p-8 max-w-[420px] w-[90%] md:w-full max-h-[90vh] overflow-y-auto shadow-[0_25px_60px_rgba(0,0,0,0.9)] flex flex-col items-center relative text-center select-text transition-all scrollbar-thin"
+            >
+              <div className="text-[#C9A84C] text-3xl md:text-4xl font-bold leading-none mb-3 select-none">◆</div>
+              
+              <div className="text-[9px] md:text-[10px] tracking-[0.15em] text-[#888888] font-bold uppercase mb-2 text-center">
+                YOU'VE USED YOUR 3 FREE GENERATIONS
+              </div>
+              
+              <h2 className="font-serif font-bold text-white text-2xl md:text-[28px] leading-tight mb-2">
+                Unlock Sellify AI Forever
+              </h2>
+              
+              <p className="font-sans text-[#888888] text-xs md:text-[14px] leading-relaxed mb-6 px-1">
+                Join Ghana sellers closing more sales every single day
+              </p>
+
+              {/* Features List */}
+              <div className="w-full space-y-3 mb-6 text-left border-b border-white/5 pb-5">
+                {[
+                  "Unlimited generations forever",
+                  "WhatsApp + Instagram + Facebook copy",
+                  "GHS pricing for every product",
+                  "Demand score and trend insights",
+                  "All future updates included",
+                  "Pay once. Own it forever."
+                ].map((feature, i) => (
+                  <div key={i} className="flex items-start space-x-3 text-xs md:text-sm text-[#F5F5F5] font-sans">
+                    <span className="text-[#C9A84C] font-extrabold shrink-0 mt-0.5">✓</span>
+                    <span className="leading-tight">{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price Details */}
+              <div className="w-full text-center select-none mb-6">
+                <span className="text-[9px] tracking-[0.15em] font-mono font-bold text-[#888888] block mb-1">
+                  ONE TIME PAYMENT
+                </span>
+                <span className="font-serif text-5xl md:text-[56px] font-extrabold text-[#C9A84C] leading-none block select-text">
+                  GH₵50
+                </span>
+                <span className="text-xs text-[#888888] font-sans block mt-1">
+                  only — yours forever
+                </span>
+              </div>
+
+              {/* Divider */}
+              <div className="w-full border-t border-[#C9A84C]/20 mb-6" />
+
+              {/* Steps Component */}
+              <div className="w-full bg-[#C9A84C]/[0.05] border border-[#C9A84C]/15 rounded-xl p-4 text-left mb-6">
+                <span className="text-[9px] tracking-[0.15em] font-mono text-[#C9A84C] font-semibold block mb-4 uppercase">
+                  HOW TO UNLOCK
+                </span>
+                
+                <div className="space-y-4 font-sans">
+                  {/* Step 1 */}
+                  <div className="flex items-start space-x-3">
+                    <div className="h-6 w-6 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-[#F5F5F5] font-medium leading-none">Send GH₵50 to MoMo</p>
+                      <div className="flex items-center space-x-2 mt-1.5 flex-wrap gap-1">
+                        <span 
+                          onClick={() => handleCopyNumber("0500810910")}
+                          className="text-base font-mono font-black text-white tracking-wider cursor-pointer hover:text-[#C9A84C] transition-colors select-all"
+                          title="Click to copy Mobile Wallet number"
+                        >
+                          0500810910
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyNumber("0500810910")}
+                          className="text-[9px] font-mono bg-[#C9A84C]/10 border border-[#C9A84C]/25 hover:bg-[#C9A84C]/20 text-[#C9A84C] px-1.5 py-0.5 rounded cursor-pointer transition-all active:scale-95"
+                        >
+                          {copiedNumber ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#888888] mt-0.5">Mobile Money • Name: Macmillan Adu</p>
+                    </div>
+                  </div>
+                  
+                  {/* Step 2 */}
+                  <div className="flex items-start space-x-3">
+                    <div className="h-6 w-6 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-[#F5F5F5] font-medium leading-tight">
+                        WhatsApp your payment screenshot to
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1.5 flex-wrap gap-1">
+                        <span 
+                          onClick={() => handleCopyNumber("0500810910")}
+                          className="text-base font-mono font-black text-white tracking-wider cursor-pointer hover:text-[#C9A84C] transition-colors select-all"
+                          title="Click to copy WhatsApp destination"
+                        >
+                          0500810910
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyNumber("0500810910")}
+                          className="text-[9px] font-mono bg-[#C9A84C]/10 border border-[#C9A84C]/25 hover:bg-[#C9A84C]/20 text-[#C9A84C] px-1.5 py-0.5 rounded cursor-pointer transition-all active:scale-95"
+                        >
+                          {copiedNumber ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Step 3 */}
+                  <div className="flex items-start space-x-3">
+                    <div className="h-6 w-6 rounded-full border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-[#F5F5F5] font-medium leading-none">Get unlocked within 5 minutes</p>
+                      <p className="text-[10px] text-[#888888] mt-1.5">We're available 8am - 10pm daily</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Payment action trigger */}
+              {!showCodeInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCodeInput(true)}
+                  className="w-full h-[52px] rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#E8C96D] text-black font-sans font-extrabold tracking-widest uppercase text-xs flex items-center justify-center space-x-2 transition-transform active:scale-[0.98] shadow-md cursor-pointer mb-2 shrink-0 select-none"
+                >
+                  <span>I'VE SENT PAYMENT — UNLOCK ME</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <div className={`w-full flex flex-col space-y-3 mb-2 shrink-0 select-text font-sans ${isShaking ? "animate-shake" : ""}`}>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={enteredCode}
+                      onChange={(e) => {
+                        setEnteredCode(e.target.value);
+                        setCodeError(null);
+                      }}
+                      placeholder="Enter your unlock code"
+                      className="w-full rounded-lg bg-[#0A0A0A] border border-[#C9A84C]/25 focus:border-[#C9A84C] text-[#F5F5F5] font-mono text-center tracking-widest text-xs uppercase p-3 placeholder-gray-600 focus:outline-none transition-all"
+                      maxLength={30}
+                    />
+                  </div>
+                  
+                  <p className="text-[10px] text-[#888888] text-center leading-normal">
+                    We will send your code via WhatsApp after payment confirmation
+                  </p>
+                  
+                  {codeError && (
+                    <p className="text-red-400 text-xs font-mono text-center animate-pulse">
+                      {codeError}
+                    </p>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={handleConfirmUnlockCode}
+                    className="w-full h-[52px] rounded-xl border border-[#C9A84C] hover:bg-[#C9A84C]/10 text-white font-bold text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
+                  >
+                    CONFIRM CODE
+                  </button>
+                </div>
+              )}
+
+              {/* Footer Badge */}
+              <div className="text-[10px] tracking-widest text-[#888888] text-center mt-6 uppercase leading-none select-none">
+                🔒 Secure • Instant • Ghana Made 🇬🇭
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
