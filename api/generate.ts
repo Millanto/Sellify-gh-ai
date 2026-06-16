@@ -72,7 +72,13 @@ IMPORTANT RULES:
     const userPrompt = `Generate a complete Sellify GH premium selling package in Ghanaian GHS for the following input: "${query}"`;
 
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const maxAttempts = 6;
+    
+    // Serverless functions on Vercel have a strict execution time limit of 10s.
+    // If we exceed it, Vercel kills the process and returns an HTML 504 Gateway Timeout.
+    // We detect if we are in serverless, and cap attempts and delays to guarantee we return a JSON response in time.
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA || !process.env.PORT;
+    const maxAttempts = isServerless ? 3 : 5;
+    
     let attempt = 0;
     let response: any = null;
     let lastError: any = null;
@@ -80,9 +86,9 @@ IMPORTANT RULES:
     while (attempt < maxAttempts) {
       try {
         if (attempt > 0) {
-          const baseDelay = 800; // Starting delay in ms
-          const exponentialDelay = baseDelay * Math.pow(2, attempt - 1);
-          const jitter = Math.random() * 300;
+          const baseDelay = isServerless ? 300 : 800; // Fast retry in serverless to beat the 10s budget
+          const exponentialDelay = baseDelay * Math.pow(1.8, attempt - 1);
+          const jitter = Math.random() * (isServerless ? 100 : 300);
           const totalDelay = exponentialDelay + jitter;
           console.log(`[Attempt ${attempt + 1}/${maxAttempts}] Gemini API busy, recovering. Retrying in ${Math.round(totalDelay)}ms...`);
           await delay(totalDelay);

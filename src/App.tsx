@@ -89,6 +89,18 @@ function sanitizePackage(pkg: SellingPackage): SellingPackage {
 function formatErrorMessage(errorText: string): string {
   if (!errorText) return "An unexpected error occurred with the Sellify GH synthesis core. Please retry.";
   
+  if (errorText === "404_API_NOT_FOUND") {
+    return "The Sellify GH server endpoint was not found (404). If you are deploying on Vercel, please make sure your project contains 'vercel.json' in the root directory, and that you have redeployed the full package (not just local static build logs).";
+  }
+
+  if (errorText === "504_SERVER_TIMEOUT") {
+    return "The commerce server timed out (504/502 Gateway Timeout). Free-tier hosting (like Vercel) limits function execution to 10 seconds. On initial run/cold starts, the AI takes a moment longer to compile your Ghanaian marketing package. Please click 'Retry Gen' again in a second—it usually passes instantly on the second try!";
+  }
+
+  if (errorText === "RESPONSE_NOT_JSON") {
+    return "Your hosted deployment returned a raw HTML template instead of clean JSON data. This almost always means the server crashed during launch. Please log into your Vercel Project Settings -> Environment Variables, add GEMINI_API_KEY with your premium sovereign key, and trigger a fresh redeploy to activate it.";
+  }
+
   try {
     const trimmed = errorText.trim();
     if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -110,9 +122,21 @@ function formatErrorMessage(errorText: string): string {
     lower.includes("unavailable") || 
     lower.includes("overloaded") || 
     lower.includes("capacity") ||
-    lower.includes("spikes in demand")
+    lower.includes("spikes in demand") ||
+    lower.includes("temporary busy") ||
+    lower.includes("temporarily busy")
   ) {
     return "The retail AI compiler is experiencing a momentary capacity surge from extremely high merchant demand across Accra & Kumasi. We attempted automatic self-healing retries, but servers are still temporarily busy. Please try executing again in a few seconds.";
+  }
+
+  if (
+    lower.includes("api_key") || 
+    lower.includes("api key") || 
+    lower.includes("unauthorized") || 
+    lower.includes("invalid key") ||
+    lower.includes("is not defined")
+  ) {
+    return "Sovereign key authentication failed. Please configure GEMINI_API_KEY in your hosting Environment Variables (e.g., inside your Vercel Project Dashboard), and trigger a new redeployment.";
   }
 
   return errorText;
@@ -277,11 +301,21 @@ ${hashtags}`;
         body: JSON.stringify({ query }),
       });
 
+      // Catch Vercel/serverless timeouts and routing mismatch states early
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("404_API_NOT_FOUND");
+        }
+        if (response.status === 504 || response.status === 502) {
+          throw new Error("504_SERVER_TIMEOUT");
+        }
+      }
+
       let data: any;
       try {
         data = await response.json();
       } catch (jsonErr) {
-        throw new Error("The commerce server returned an invalid format. Please try again.");
+        throw new Error("RESPONSE_NOT_JSON");
       }
 
       if (!response.ok) {
